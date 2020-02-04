@@ -67,8 +67,8 @@ int main(int argc, char *argv[]) {
     // Part 1: create two threads and have them
     // run the inc_shared_counter function()
     /* Implement Code Here */
-    pthread_create(&t1, NULL, inc_shared_counter,&loop);
-    pthread_create(&t2, NULL, inc_shared_counter,&loop);
+    pthread_create(&t1, NULL, inc_shared_counter,NULL);
+    pthread_create(&t2, NULL, inc_shared_counter,NULL);
     pthread_join(t1, NULL);
     pthread_join(t2, NULL);
 
