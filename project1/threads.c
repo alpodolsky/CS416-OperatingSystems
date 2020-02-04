@@ -2,7 +2,7 @@
  *
  * Group Members Names and NetIDs:
  *   1.Alex Podolsky, adp169
- *   2.Al
+ *   2.Al Manrique
  *
  * ILab Machine Tested on:
  *  ilab1
