@@ -17,14 +17,12 @@
  * such that you get to the line after "r2 = *( (int *) 0 )"
  */
 void segment_fault_handler(int signum) {
-
     printf("I am slain!\n");
-
-
+    
     /* Implement Code Here */
-    return *(void*)(main)+4;
-
-
+    int* p= &signum;
+    p=p+51;
+    *(p)+=0x5;
 }
 
 int main(int argc, char *argv[]) {
