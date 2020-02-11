@@ -6,6 +6,7 @@
  *
  * ILab Machine Tested on:
  *  ilab1
+ *	atlas
  */
 
 #include <stdio.h>
@@ -22,15 +23,15 @@ int main(int argc, char *argv[]) {
 	
 	int i;
 	double time = 0;
-	struct timeval start;
+	struct timeval begin;
 	struct timeval end;
 	
 	for(i = 0; i<5000000; i++){
 	
-		gettimeofday(&start, 0);
+		gettimeofday(&begin, 0);
 		syscall(getuid());
 		gettimeofday(&end, 0);
-		time += ((end.tv_sec - start.tv_sec)*1000000 + (end.tv_usec-start.tv_usec));
+		time += ((end.tv_sec - begin.tv_sec)*1000000 + (end.tv_usec-begin.tv_usec));
 	}
 	avg_time = time/5000000;
 	
