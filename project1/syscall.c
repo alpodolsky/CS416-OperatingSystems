@@ -1,11 +1,11 @@
 /* syscall.c
  *
  * Group Members Names and NetIDs:
- *   1. Al Manrique am2240
- *   2. Alex P.
+ *   1. Al Manrique, am2240
+ *   2. Alex Podolsky, adp169
  *
  * ILab Machine Tested on:
- *
+ *  ilab1
  */
 
 #include <stdio.h>
@@ -38,7 +38,7 @@ int main(int argc, char *argv[]) {
     // Remember to place your final calculated average time
     // per system call into the avg_time variable
 	
-    printf("Average time per system call is %0.4f microseconds\n", avg_time);
+    printf("Average time per system call is %f microseconds\n", avg_time);
 
     return 0;
 }
