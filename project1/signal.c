@@ -21,8 +21,16 @@ void segment_fault_handler(int signum) {
     
     /* Implement Code Here */
     int* p= &signum;
+    //i feel like i couldve incremented this by another value
+    //but i found it from printing an excessive amount of addresses starting at rbp's
+    //in gdb and counted the difference in position from signum's address to what i think is rip
     p=p+51;
-    *(p)+=0x5;
+    //dereference p for its value and move it past the offending instruction
+    //0x00000000004005bd <+42>:    mov    (%rax),%eax <-- offending instruction
+    //0x00000000004005bf <+44>:    mov    %eax,-0x4(%rbp) <-- this instruction is fine
+    //0x00000000004005c2 <+47>:    mov    $0x40067c,%edi <-- or this one
+    //after some playing it seems any value from 2 to 5 would work
+    *(p)+=0x2;
 }
 
 int main(int argc, char *argv[]) {

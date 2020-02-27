@@ -36,7 +36,6 @@ void *inc_shared_counter(void *arg) {
         /* Part 2: Modify the code within this for loop to
         allow for synchonized incrementing of x
         between the two threads */
-        //printf("%d i value",i);
         pthread_mutex_lock(&mutex);
         x = x + 1;
         pthread_mutex_unlock(&mutex);
@@ -61,7 +60,9 @@ int main(int argc, char *argv[]) {
     }
 
     loop = atoi(argv[1]) / 2;
-
+    //AP: I interpreted this as each thread will increment x by the loop amount,
+    //justifying why this print is half of what the expected end value should be
+    //hopefully i interpreted it correctly
     printf("Going to run two threads to increment x up to %d\n", loop);
 
     // Part 1: create two threads and have them
