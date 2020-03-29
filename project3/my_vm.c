@@ -1,17 +1,41 @@
 #include "my_vm.h"
 
+typedef unsigned char byte_t;
+byte_t* physical_mem;
+int num_physical_pages;
+int num_virtual_pages;
+byte_t* physical_bitmap;
+byte_t* virtual_bitmap;
+pde_t* directory;
 /*
 Function responsible for allocating and setting your physical memory 
 */
 void set_physical_mem() {
-
+    int i;
     //Allocate physical memory using mmap or malloc; this is the total size of
     //your memory you are simulating
-
-    
+	physical_mem = (byte_t*) malloc(sizeof(byte_t) * MEMSIZE);
+	
     //HINT: Also calculate the number of physical and virtual pages and allocate
     //virtual and physical bitmaps and initialize them
-
+	
+	//calculate the number of physical and virtual pages
+	num_physical_pages = MEMSIZE/PGSIZE;
+	num_virtual_pages = MAX_MEMSIZE/PGSIZE;
+    
+	//allocate virtual and physical bitmaps
+	//divide number of pages by 8 to get number of bytes
+	physical_bitmap = (byte_t*) malloc(sizeof(byte_t)* (num_physical_pages/8));
+	virtual_bitmap = (byte_t*) malloc(sizeof(byte_t)* (num_virtual_pages/8));
+	
+	//initialize bitmaps
+	for(i = 0; i <(num_physical_pages/8); i++){
+		physical_bitmap[i] = 0;
+	}
+	
+	for(i = 0; i<(num_virtual_pages/8); i++){
+		virtual_bitmap[i] = 0;
+	}
 }
 
 
@@ -114,14 +138,23 @@ void *a_malloc(unsigned int num_bytes) {
     /* 
      * HINT: If the physical memory is not yet initialized, then allocate and initialize.
      */
-
+    if(physical_mem==NULL){
+        set_physical_mem();
+    }
    /* 
     * HINT: If the page directory is not initialized, then initialize the
     * page directory. Next, using get_next_avail(), check if there are free pages. If
     * free pages are available, set the bitmaps and map a new page. Note, you will 
     * have to mark which physical pages are used. 
     */
-
+   
+   //check if page directory has been initialized here
+    if(directory ==NULL){
+        //find bits for directory and pte
+        //int phys_bitsNeeded = log2(MEMSIZE/PGSIZE);
+	    //int virt_bitsNeeded = log2(MAX_MEMSIZE/PGSIZE);
+        //directory = malloc(sizeof(pde_t)*pow(2,phys_bitsNeeded));
+    }
     return NULL;
 }
 
@@ -187,6 +220,3 @@ void mat_mult(void *mat1, void *mat2, int size, void *answer) {
 
        
 }
-
-
-
