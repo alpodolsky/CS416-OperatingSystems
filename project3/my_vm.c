@@ -7,32 +7,36 @@ int num_virtual_pages;
 byte_t* physical_bitmap;
 byte_t* virtual_bitmap;
 pde_t* directory;
+
 /*
-Function responsible for allocating and setting your physical memory 
+Function responsible for allocating and setting your physical memory
 */
 void set_physical_mem() {
     int i;
     //Allocate physical memory using mmap or malloc; this is the total size of
     //your memory you are simulating
+
 	physical_mem = (byte_t*) malloc(sizeof(byte_t) * MEMSIZE);
-	
+
+
     //HINT: Also calculate the number of physical and virtual pages and allocate
     //virtual and physical bitmaps and initialize them
-	
+
 	//calculate the number of physical and virtual pages
 	num_physical_pages = MEMSIZE/PGSIZE;
 	num_virtual_pages = MAX_MEMSIZE/PGSIZE;
-    
+
+
 	//allocate virtual and physical bitmaps
 	//divide number of pages by 8 to get number of bytes
 	physical_bitmap = (byte_t*) malloc(sizeof(byte_t)* (num_physical_pages/8));
 	virtual_bitmap = (byte_t*) malloc(sizeof(byte_t)* (num_virtual_pages/8));
-	
+
 	//initialize bitmaps
 	for(i = 0; i <(num_physical_pages/8); i++){
 		physical_bitmap[i] = 0;
 	}
-	
+
 	for(i = 0; i<(num_virtual_pages/8); i++){
 		virtual_bitmap[i] = 0;
 	}
@@ -73,7 +77,7 @@ check_TLB(void *va) {
 void
 print_TLB_missrate()
 {
-    double miss_rate = 0;	
+    double miss_rate = 0;
 
     /*Part 2 Code here to calculate and print the TLB miss rate*/
 
@@ -100,7 +104,7 @@ pte_t *translate(pde_t *pgdir, void *va) {
 
 
     //If translation not successfull
-    return NULL; 
+    return NULL;
 }
 
 
@@ -125,7 +129,7 @@ page_map(pde_t *pgdir, void *va, void *pa)
 /*Function that gets the next available page
 */
 void *get_next_avail(int num_pages) {
- 
+
     //Use virtual address bitmap to find the next free page
 }
 
@@ -135,19 +139,19 @@ and used by the benchmark
 */
 void *a_malloc(unsigned int num_bytes) {
 
-    /* 
+    /*
      * HINT: If the physical memory is not yet initialized, then allocate and initialize.
      */
     if(physical_mem==NULL){
         set_physical_mem();
     }
-   /* 
+   /*
     * HINT: If the page directory is not initialized, then initialize the
     * page directory. Next, using get_next_avail(), check if there are free pages. If
-    * free pages are available, set the bitmaps and map a new page. Note, you will 
-    * have to mark which physical pages are used. 
+    * free pages are available, set the bitmaps and map a new page. Note, you will
+    * have to mark which physical pages are used.
     */
-   
+
    //check if page directory has been initialized here
     if(directory ==NULL){
         //find bits for directory and pte
@@ -163,13 +167,13 @@ void *a_malloc(unsigned int num_bytes) {
 void a_free(void *va, int size) {
 
     /* Part 1: Free the page table entries starting from this virtual address
-     * (va). Also mark the pages free in the bitmap. Perform free only if the 
+     * (va). Also mark the pages free in the bitmap. Perform free only if the
      * memory from "va" to va+size is valid.
      *
      * Part 2: Also, remove the translation from the TLB
      */
-     
-    
+
+
 }
 
 
@@ -179,7 +183,7 @@ void a_free(void *va, int size) {
 void put_value(void *va, void *val, int size) {
 
     /* HINT: Using the virtual address and translate(), find the physical page. Copy
-     * the contents of "val" to a physical page. NOTE: The "size" value can be larger 
+     * the contents of "val" to a physical page. NOTE: The "size" value can be larger
      * than one page. Therefore, you may have to find multiple pages using translate()
      * function.
      */
@@ -213,10 +217,9 @@ void mat_mult(void *mat1, void *mat2, int size, void *answer) {
 
     /* Hint: You will index as [i * size + j] where  "i, j" are the indices of the
      * matrix accessed. Similar to the code in test.c, you will use get_value() to
-     * load each element and perform multiplication. Take a look at test.c! In addition to 
-     * getting the values from two matrices, you will perform multiplication and 
+     * load each element and perform multiplication. Take a look at test.c! In addition to
+     * getting the values from two matrices, you will perform multiplication and
      * store the result to the "answer array"
      */
 
-       
 }
