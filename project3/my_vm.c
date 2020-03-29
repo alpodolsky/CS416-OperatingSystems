@@ -1,5 +1,12 @@
 #include "my_vm.h"
 
+typedef unsigned char byte_t;
+byte_t* physical_mem;
+int num_physical_pages;
+int num_virtual_pages;
+byte_t* physical_bitmap;
+byte_t* virtual_bitmap;
+
 /*
 Function responsible for allocating and setting your physical memory 
 */
@@ -7,11 +14,34 @@ void set_physical_mem() {
 
     //Allocate physical memory using mmap or malloc; this is the total size of
     //your memory you are simulating
-
+	
+	physical_mem = (byte_t*) = malloc(sizeof(byte_t) * MEMSIZE);
     
     //HINT: Also calculate the number of physical and virtual pages and allocate
     //virtual and physical bitmaps and initialize them
+	
+	//calculate the number of physical and virtual pages
+	num_physical_pages = MEMSIZE/PGSIZE;
+	num_virtual_pages = MAX_MEMSIZE/PGSIZE;
 
+	//int phys_bitsNeeded = log2(MEMSIZE/PGSIZE);
+	//int virt_bitsNeeded = log2(MAX_MEMSIZE/PGSIZE);
+	
+	//allocate virtual and physical bitmaps
+	//divide number of pages by 8 to get number of bytes
+	physical_bitmap = (byte_t*) malloc(sizeof(byte_t)* (num_physical_pages/8));
+	virtual_bitmap = (byte_t*) malloc(sizeof(byte_t)* (num_virtual_pages/8));
+	
+	//initialize bitmaps
+	int i = 0;
+	for(i = 0; i <(num_physical_pages/8); i++){
+		physical_bitmap[i] = 0;
+	}
+	
+	for(i = 0; i<(num_virtual_pages/8); i++){
+		virtual_bitmap[i] = 0;
+	}
+	
 }
 
 
@@ -187,6 +217,5 @@ void mat_mult(void *mat1, void *mat2, int size, void *answer) {
 
        
 }
-
 
 
