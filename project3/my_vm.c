@@ -1,13 +1,14 @@
 #include "my_vm.h"
 
 typedef unsigned char byte_t;
-byte_t* physical_mem;
-int num_physical_pages;
-int num_virtual_pages;
+byte_t* physical_mem=NULL;
+double num_physical_pages;
+double num_virtual_pages;
 byte_t* physical_bitmap;
 byte_t* virtual_bitmap;
-pde_t* directory;
-
+pde_t* directory=NULL;
+int entryBits;
+int offSetBits;
 /*
 Function responsible for allocating and setting your physical memory
 */
@@ -15,9 +16,7 @@ void set_physical_mem() {
     int i;
     //Allocate physical memory using mmap or malloc; this is the total size of
     //your memory you are simulating
-
-	physical_mem = (byte_t*) malloc(sizeof(byte_t) * MEMSIZE);
-
+	physical_mem = malloc(sizeof(byte_t) * MEMSIZE);
 
     //HINT: Also calculate the number of physical and virtual pages and allocate
     //virtual and physical bitmaps and initialize them
@@ -25,7 +24,6 @@ void set_physical_mem() {
 	//calculate the number of physical and virtual pages
 	num_physical_pages = MEMSIZE/PGSIZE;
 	num_virtual_pages = MAX_MEMSIZE/PGSIZE;
-
 
 	//allocate virtual and physical bitmaps
 	//divide number of pages by 8 to get number of bytes
@@ -36,7 +34,6 @@ void set_physical_mem() {
 	for(i = 0; i <(num_physical_pages/8); i++){
 		physical_bitmap[i] = 0;
 	}
-
 	for(i = 0; i<(num_virtual_pages/8); i++){
 		virtual_bitmap[i] = 0;
 	}
@@ -128,7 +125,7 @@ page_map(pde_t *pgdir, void *va, void *pa)
 
 /*Function that gets the next available page
 */
-void *get_next_avail(int num_pages) {
+void *get_next_avail() {
 
     //Use virtual address bitmap to find the next free page
 }
@@ -153,12 +150,27 @@ void *a_malloc(unsigned int num_bytes) {
     */
 
    //check if page directory has been initialized here
-    if(directory ==NULL){
+    if(directory == NULL){
         //find bits for directory and pte
-        //int phys_bitsNeeded = log2(MEMSIZE/PGSIZE);
-	    //int virt_bitsNeeded = log2(MAX_MEMSIZE/PGSIZE);
-        //directory = malloc(sizeof(pde_t)*pow(2,phys_bitsNeeded));
+        //divide pagesize by 4 because 4 bytes for our 32 bit address entries
+        int numberEntries = PGSIZE/4;
+
+        offSetBits = log2(PGSIZE);
+        entryBits = log2(numberEntries);
+        /*this took me a while but basically
+            the pde gets left over bits because
+            the pt corresponds to physical pages,
+            the pd just keeps track of the pt's
+        */
+       //not making this global because it should only be needed here
+        int pdEntryBits = 32-offSetBits-entryBits;
+
+        //calculates how many bytes the pde will be
+        //this way each entry in directory will be 4 bytes
+        int pdeSize = pow(2,pdEntryBits);
+        directory = malloc(pdeSize*sizeof(pde_t*));
     }
+    
     return NULL;
 }
 
