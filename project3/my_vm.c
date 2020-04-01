@@ -94,8 +94,66 @@ pte_t *translate(pde_t *pgdir, void *va) {
     /* Part 1 HINT: Get the Page directory index (1st level) Then get the
     * 2nd-level-page table index using the virtual address.  Using the page
     * directory index and page table index get the physical address.
-    *
-    * Part 2 HINT: Check the TLB before performing the translation. If
+    */
+	//calculating the num of bits in offset with respect to page size
+	long n = PGSIZE, offset_bits = 0; //n is temp var
+	while(n != 1){
+		n /= 2;
+		offset_bits++
+	}
+	
+	//calculating the num of bits in virtual address
+	n = MAX_MEMSIZE;
+	int virt_address_bits = 0;
+	while (n != 1){
+		n /= 2;
+		virt_address_bits++;
+	}
+	
+	//calculating the num of bits in p1 and p2
+	n = virt_address_bits - offset_bits; //32-12=20
+	//p1_bits is the number of bits for outer page table and p2_bits for inner
+	int p1_bits, p2_bits;  
+	p1_bits = n/2;
+	p2_bits = n/2;
+	
+	if(va_bits > (d_bits + p1_bits + p1_bits)){
+		p2_bits++ //some odd number occurs, give extra bit to p1_bits
+	}
+	//p1, p2, and d makes the virtual address where p1 is the outer page table 
+	//p2 is the page table
+	pde_t v_addr = *((pde_t*) va); //get virtual address
+	
+	//initially all p1, p2 and d (offset) have all 1's in it
+	pte_t d = 0xFFFFFFFFFFFFFFFF;
+	pte_t p1 = 0xFFFFFFFFFFFFFFFF;
+	pte_t p2 = 0xFFFFFFFFFFFFFFFF;
+	
+	//extract p1, p2 and d (offset) from virtual address
+	d >>= (64 - offset_bits); //making a mask
+	d = d & v_addr;
+	
+	p1 <<= offset_bits;
+	p1 <<= (64 - (p1_bits + offset_bits));
+	p1 >>= (64 - (p1_bits + offset_bits));
+	p1 = p1 & v_addr;
+	p1 >>= d_bits;
+	
+	p2 <<= (p1_bits + d_bits);
+	p2 <<= (64 - (p1_bits + d_bits + p2_bits));
+	p2 <<= (64 - (p1_bits + d_bits + p2_bits));
+	p2 = p2 & v_addr;
+	p2 >>= (d_bits + p1_bits);
+	
+	//extracting index physical memory page from page tables
+	pte_t f = 0;
+	pde_t pgtb = pgdir[p1];
+	
+	//making physical address from index and d (offset)
+	f <<= d_bits;
+	pte_t p_addr = f | d;
+	return &p_addr;
+    /* Part 2 HINT: Check the TLB before performing the translation. If
     * translation exists, then you can return physical address from the TLB.
     */
 
