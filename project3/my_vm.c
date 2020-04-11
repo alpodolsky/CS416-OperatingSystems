@@ -20,7 +20,7 @@ void set_physical_mem() {
     //Allocate physical memory using mmap or malloc; this is the total size of
     //your memory you are simulating
 
-    	physical_mem = (byte_t *) malloc(sizeof(byte_t) * MEMSIZE);
+    physical_mem = (byte_t *) malloc(sizeof(byte_t) * MEMSIZE);
 
     //HINT: Also calculate the number of physical and virtual pages and allocate
     //virtual and physical bitmaps and initialize them
@@ -344,7 +344,7 @@ void put_value(void *va, void *val, int size) {
      * function.
      */
 
-	unsigned int pages = ceil(size/PGSIZE);
+	unsigned int pages = (size/PGSIZE)+1;
     for(i=0;i<pages;i++){
 
         void* pa = translate(page_directory,va);
@@ -366,7 +366,7 @@ void get_value(void *va, void *val, int size) {
     /* HINT: put the values pointed to by "va" inside the physical memory at given
     * "val" address. Assume you can access "val" directly by derefencing them.
     */
-	unsigned int pages = ceil(size/PGSIZE);
+	unsigned int pages = (size/PGSIZE)+1;
     for(i=0;i<pages;i++){
 
         void* pa = translate(page_directory,va);
