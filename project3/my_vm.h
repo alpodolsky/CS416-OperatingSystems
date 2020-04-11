@@ -3,7 +3,6 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
-//remember to change the makefile to make this work with -lm flag
 #include <math.h>
 
 //Assume the address space is 32 bits, so the max memory size is 4GB
@@ -24,6 +23,12 @@ typedef unsigned long pte_t;
 
 // Represents a page directory entry
 typedef unsigned long pde_t;
+
+pde_t * page_directory;
+pte_t ** page_table;
+pte_t free_frame;
+pte_t free_page;
+pte_t dir_entry;
 
 #define TLB_ENTRIES 512
 
