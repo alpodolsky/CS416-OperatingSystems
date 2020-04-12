@@ -135,7 +135,7 @@ pte_t *translate(pde_t *pgdir, void *va) {
 	pte_t inner = 0xFFFFFFFF;
 
 	//extract p1, p2 and d from virtual address
-	//d >>= (int) (64 - page_offset_bits); //making a mask
+	//d >>= (int) (32 - page_offset_bits); //making a mask
 	//d = d & v_addr;
 	
 	inner <<= (int) page_offset_bits;
@@ -188,7 +188,7 @@ page_map(pde_t *pgdir, void *va, void *pa)
 	pde_t v_addr = (pde_t) va; //get the virtual address
 
 	//initially all p1, p2 and d have all 1's in it
-	pte_t d = 0xFFFFFFFF; //it is 64 bit number
+	pte_t d = 0xFFFFFFFF; //it is 32 bit number
 	pde_t outer = 0xFFFFFFFF; 
 	pte_t inner = 0xFFFFFFFF;
 
