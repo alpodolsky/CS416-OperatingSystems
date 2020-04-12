@@ -64,9 +64,9 @@ void set_physical_mem() {
 		page_table[i] = (pte_t *) malloc(sizeof(pte_t) * inn_page_bits);
 	}
 
-	free_frame = 4;
-	free_page = 3;
-	dir_entry = 2;
+	//free_frame = 4;
+	//free_page = 3;
+	//dir_entry = 2;
 }
 
 
@@ -131,23 +131,23 @@ pte_t *translate(pde_t *pgdir, void *va) {
 	pde_t v_addr = (pde_t) va; //get the virtual address
 
 	//initially all p1, p2 and d have all 1's in it
-	pte_t d = 0xFFFFFFFFFFFFFFFF; //it is 64 bit number
-	pde_t outer = 0xFFFFFFFFFFFFFFFF;
-	pte_t inner = 0xFFFFFFFFFFFFFFFF;
+	pte_t d = 0xFFFFFFFF; //it is 32 bit number
+	pde_t outer = 0xFFFFFFFF;
+	pte_t inner = 0xFFFFFFFF;
 
 	//extract p1, p2 and d from virtual address
-	d >>= (int) (64 - page_offset_bits); //making a mask
+	d >>= (int) (32 - page_offset_bits); //making a mask
 	d = d & v_addr;
 
 	inner <<= (int) page_offset_bits;
-	inner <<= (int) (64 - (inn_page_bits + page_offset_bits));
-	inner >>= (int) (64 - (inn_page_bits + page_offset_bits));
+	inner <<= (int) (32 - (inn_page_bits + page_offset_bits));
+	inner >>= (int) (32 - (inn_page_bits + page_offset_bits));
 	inner = inner & v_addr;
 	inner >>= (int) page_offset_bits;
 
 	outer <<= (int) (inn_page_bits + page_offset_bits);
-	outer <<= (int) (64 - (inn_page_bits + page_offset_bits + out_page_bits));
-	outer >>= (int) (64 - (inn_page_bits + page_offset_bits + out_page_bits));
+	outer <<= (int) (32 - (inn_page_bits + page_offset_bits + out_page_bits));
+	outer >>= (int) (32 - (inn_page_bits + page_offset_bits + out_page_bits));
 	outer = outer & v_addr;
 	outer >>= (int) (page_offset_bits + inn_page_bits);
 
@@ -187,23 +187,23 @@ page_map(pde_t *pgdir, void *va, void *pa)
 	pde_t v_addr = (pde_t) va; //get the virtual address
 
 	//initially all p1, p2 and d have all 1's in it
-	pte_t d = 0xFFFFFFFFFFFFFFFF; //it is 64 bit number
-	pde_t outer = 0xFFFFFFFFFFFFFFFF;
-	pte_t inner = 0xFFFFFFFFFFFFFFFF;
+	pte_t d = 0xFFFFFFFF; //it is 32 bit number
+	pde_t outer = 0xFFFFFFFF;
+	pte_t inner = 0xFFFFFFFF;
 
 	//extract p1, p2 and d from virtual address
-	d >>= (int) (64 - page_offset_bits); //making a mask
+	d >>= (int) (32 - page_offset_bits); //making a mask
 	d = d & v_addr;
 
 	inner <<= (int) page_offset_bits;
-	inner <<= (int) (64 - (inn_page_bits + page_offset_bits));
-	inner >>= (int) (64 - (inn_page_bits + page_offset_bits));
+	inner <<= (int) (32 - (inn_page_bits + page_offset_bits));
+	inner >>= (int) (32 - (inn_page_bits + page_offset_bits));
 	inner = inner & v_addr;
 	inner >>= (int) page_offset_bits;
 
 	outer <<= (int) (inn_page_bits + page_offset_bits);
-	outer <<= (int) (64 - (inn_page_bits + page_offset_bits + out_page_bits));
-	outer >>= (int) (64 - (inn_page_bits + page_offset_bits + out_page_bits));
+	outer <<= (int) (32 - (inn_page_bits + page_offset_bits + out_page_bits));
+	outer >>= (int) (32 - (inn_page_bits + page_offset_bits + out_page_bits));
 	outer = outer & v_addr;
 	outer >>= (int) (page_offset_bits + inn_page_bits);
 
@@ -350,8 +350,10 @@ void put_value(void *va, void *val, int size) {
         void* pa = translate(page_directory,va);
         unsigned int address = (unsigned int)val+(i*PGSIZE);
         //handles remainder cases
+		printf("%p pa %p address %d sizePGSIZE\n", pa, address, size%PGSIZE);
         if(i==(pages-1)){
             memcpy(pa, (void*)address,size%PGSIZE);
+			break;
         }
         else{
             memcpy(pa,(void*)address,PGSIZE);
@@ -374,6 +376,7 @@ void get_value(void *va, void *val, int size) {
         //handles remainder cases
         if(i==(pages-1)){
             memcpy((void*)address, pa,size%PGSIZE);
+			break;
         }
         else{
             memcpy((void*)address, pa,PGSIZE);
@@ -381,7 +384,6 @@ void get_value(void *va, void *val, int size) {
     }
 
 }
-
 
 
 /*
