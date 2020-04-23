@@ -23,7 +23,7 @@
 #include "tfs.h"
 
 char diskfile_path[PATH_MAX];
-
+struct superblock sp;
 // Declare your in-memory data structures here
 
 /* 
@@ -140,17 +140,41 @@ int get_node_by_path(const char *path, uint16_t ino, struct inode *inode) {
 int tfs_mkfs() {
 
 	// Call dev_init() to initialize (Create) Diskfile
-
+	//idk if this is right or not
+	dev_init("disk.txt");
 	// write superblock information
+	//might need pointer for superblock
+	sp = (struct superblock)malloc(sizeof(struct superblock))
+	sp->magic_num=MAGIC_NUM;
+	sp->max_inum=MAX_INUM;
+	sp->max_dnum=MAX_DNUM;
 
+	uint32_t	i_start_blk;		/* start block of inode region */
+	uint32_t	d_start_blk;
 	// initialize inode bitmap
-
+	bitmap_t *inode_map = (char*)malloc(sizeof(MAX_INUM/8));
+	memset(inode_map, 0, MAX_INUM/8);
+	sp->i_bitmap_blk = inode_map;
+	struct inode *info_node = (struct inode*)malloc(MAX_INUM*sizeof(struct inode));
+	sp->i_start_blk = info_node;
+	
 	// initialize data block bitmap
+	bitmap_t *dblock_map = (char*)malloc(sizeof(MAX_DNUM/8));
+	memset(inode_map, 0, MAX_DNUM/8);
+	sp->d_bitmap_blk = dblock_map;
 
 	// update bitmap information for root directory
-
+	set_bitmap(sp->i_bitmap_blk, 0);
 	// update inode for root directory
-
+	sp->i_start_blk[0].ino = 0;
+	sp->i_start_blk[0].stat.st_ino=0;
+	sp->i_start_blk[0].valid = 1;
+	sp->i_start_blk[0].type = S_IFDIR;
+	sp->i_start_blk[0].vstat.st_mode = S_IFDIR;
+	sp->i_start_blk[0].link = 0;
+	sp->i_start_blk[0].vstat.st_nlink = 0;
+	sp->i_start_blk[0].blksize = BLOCK_SIZE;
+	sp->i_start_blk[0].vstat.blocks = 0;
 	return 0;
 }
 
@@ -161,7 +185,9 @@ int tfs_mkfs() {
 static void *tfs_init(struct fuse_conn_info *conn) {
 
 	// Step 1a: If disk file is not found, call mkfs
-
+	if(dev_open("disk.txt")==-1){
+		tfs_mkfs();
+	}
   // Step 1b: If disk file is found, just initialize in-memory data structures
   // and read superblock from disk
 
@@ -181,10 +207,24 @@ static int tfs_getattr(const char *path, struct stat *stbuf) {
 	// Step 1: call get_node_by_path() to get inode from path
 
 	// Step 2: fill attribute of file into stbuf from inode
-
+	//bit permissions
+	//1 is exec, 2 is write, 4 is read, 5+ is a combo of the 3
+	stbuf->st_uid = getuid();
+	stbuf->st_gid = getgid();
+	stbuf->st_atime = time( NULL );
+	stbuf->st_mtime = time( NULL );
+	if(strcmp(path,"/")==0){
+		//defines as a file where owner has all permisions group have exec and read, so does users
 		stbuf->st_mode   = S_IFDIR | 0755;
 		stbuf->st_nlink  = 2;
 		time(&stbuf->st_mtime);
+	}
+	else{
+		stbuf->st_mode   = S_IFDIR | 0644;
+		stbuf->st_nlink  = 2;
+		time(&stbuf->st_mtime);
+	}
+		
 
 	return 0;
 }
