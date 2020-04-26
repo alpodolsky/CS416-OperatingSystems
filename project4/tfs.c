@@ -24,6 +24,7 @@
 
 char diskfile_path[PATH_MAX];
 struct superblock sp;
+unsigned char buffer[BLOCK_SIZE];
 // Declare your in-memory data structures here
 
 /* 
@@ -32,7 +33,7 @@ struct superblock sp;
 int get_avail_ino() {
 
 	// Step 1: Read inode bitmap from disk
-	
+	bio_read(sp->i_start_blk, buffer);
 	// Step 2: Traverse inode bitmap to find an available slot
 
 	// Step 3: Update inode bitmap and write to disk 
@@ -190,6 +191,9 @@ static void *tfs_init(struct fuse_conn_info *conn) {
 	}
   // Step 1b: If disk file is found, just initialize in-memory data structures
   // and read superblock from disk
+	sp = (struct superblock)malloc(sizeof(struct superblock));
+	bio_read(0,buffer)
+	memcpy(sp, buf, sizeof(superblock));
 
 	return NULL;
 }
@@ -197,8 +201,10 @@ static void *tfs_init(struct fuse_conn_info *conn) {
 static void tfs_destroy(void *userdata) {
 
 	// Step 1: De-allocate in-memory data structures
-
+	free(sp);
 	// Step 2: Close diskfile
+	dev_close();
+}
 
 }
 
