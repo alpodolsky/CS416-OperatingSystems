@@ -23,6 +23,8 @@
 #include "tfs.h"
 
 char diskfile_path[PATH_MAX];
+
+int i=0;
 struct superblock sp;
 unsigned char buffer[BLOCK_SIZE];
 // Declare your in-memory data structures here
@@ -61,22 +63,32 @@ int get_avail_blkno() {
 int readi(uint16_t ino, struct inode *inode) {
 
   // Step 1: Get the inode's on-disk block number
-
+  //double check this stuff,16 should probably at least be BLOCK_SIZE maybe?
+	unsigned int block_number = ino/16+3;
   // Step 2: Get offset of the inode in the inode on-disk block
-
+	unsigned int inode_offset = ino%16;
   // Step 3: Read the block from disk and then copy into inode structure
-
+	
+	struct inode* local_inode = malloc(BLOCK_SIZE);
+	//might need to change so that we bio_read into  char*buffer first
+		//then into local_inode
+	bio_read(block_number,local_inode);
+	memcopy(inode, &local_inode[inode_offset],sizeof(struct inode));
 	return 0;
 }
 
 int writei(uint16_t ino, struct inode *inode) {
 
 	// Step 1: Get the block number where this inode resides on disk
-	
+	unsigned int block_number = ino/16+3;
 	// Step 2: Get the offset in the block where this inode resides on disk
-
+	unsigned int inode_offset = ino%16;
 	// Step 3: Write inode to disk 
-
+	struct inode* local_inode = malloc(BLOCK_SIZE);
+	bio_read(block_number,local_inode);
+	//unsure about this index
+    memcopy(&local_inode[inode_offset], inode, sizeof(struct inode));
+    bio_write(block_number, local_inode);
 	return 0;
 }
 
@@ -87,7 +99,8 @@ int writei(uint16_t ino, struct inode *inode) {
 int dir_find(uint16_t ino, const char *fname, size_t name_len, struct dirent *dirent) {
 
   // Step 1: Call readi() to get the inode using ino (inode number of current directory)
-
+	struct inode* inode = malloc(sizeof(struct inode));
+	readi(ino, inode);
   // Step 2: Get data block of current directory from inode
 
   // Step 3: Read directory's data block and check each directory entry.
@@ -130,8 +143,23 @@ int dir_remove(struct inode dir_inode, const char *fname, size_t name_len) {
 int get_node_by_path(const char *path, uint16_t ino, struct inode *inode) {
 	
 	// Step 1: Resolve the path name, walk through path, and finally, find its inode.
+    char*tokens = strtok(path,"/");
+    struct dirent d;
+    while(tokens != NULL){
+		//delete after testing
+        printf("%s\n",tokens);
+        tokens = strtok(NULL,"/");
+		int find = dir_find(ino, tokens, strlen(tokens), &d);
+		if(find != 0){
+			printf("Invalid Path\n");
+			return -1;
+		}
+		ino = d.ino;
+		//move onto next token
+		tokens = strtok(NULL, "/");
+    }
 	// Note: You could either implement it in a iterative way or recursive way
-
+	readi(ino, inode);
 	return 0;
 }
 
@@ -141,17 +169,15 @@ int get_node_by_path(const char *path, uint16_t ino, struct inode *inode) {
 int tfs_mkfs() {
 
 	// Call dev_init() to initialize (Create) Diskfile
-	//idk if this is right or not
-	dev_init("disk.txt");
+	dev_init(diskfile_path);
 	// write superblock information
-	//might need pointer for superblock
-	sp = (struct superblock)malloc(sizeof(struct superblock))
+	sp = malloc(sizeof(struct superblock))
 	sp->magic_num=MAGIC_NUM;
 	sp->max_inum=MAX_INUM;
 	sp->max_dnum=MAX_DNUM;
 
-	uint32_t	i_start_blk;		/* start block of inode region */
-	uint32_t	d_start_blk;
+
+
 	// initialize inode bitmap
 	bitmap_t *inode_map = (char*)malloc(sizeof(MAX_INUM/8));
 	memset(inode_map, 0, MAX_INUM/8);
@@ -176,6 +202,8 @@ int tfs_mkfs() {
 	sp->i_start_blk[0].vstat.st_nlink = 0;
 	sp->i_start_blk[0].blksize = BLOCK_SIZE;
 	sp->i_start_blk[0].vstat.blocks = 0;
+
+	dev_open(diskfile_path);
 	return 0;
 }
 
@@ -186,27 +214,27 @@ int tfs_mkfs() {
 static void *tfs_init(struct fuse_conn_info *conn) {
 
 	// Step 1a: If disk file is not found, call mkfs
-	if(dev_open("disk.txt")==-1){
+	if(dev_open(diskfile_path)==-1){
 		tfs_mkfs();
 	}
-  // Step 1b: If disk file is found, just initialize in-memory data structures
-  // and read superblock from disk
+    // Step 1b: If disk file is found, just initialize in-memory data structures
+    // and read superblock from disk
 	sp = (struct superblock)malloc(sizeof(struct superblock));
-	bio_read(0,buffer)
-	memcpy(sp, buf, sizeof(superblock));
-
+	bio_read(0, &sp);
+	//memcpy(sp, buffer, sizeof(struct superblock));
+	//need to then  read the inote  and data bitmaps?
+	//make sure to reset the buffer
+	memset(buffer, BLOCK_SIZE, '\0');
 	return NULL;
 }
 
 static void tfs_destroy(void *userdata) {
-
 	// Step 1: De-allocate in-memory data structures
 	free(sp);
 	// Step 2: Close diskfile
 	dev_close();
 }
 
-}
 
 static int tfs_getattr(const char *path, struct stat *stbuf) {
 
@@ -226,8 +254,8 @@ static int tfs_getattr(const char *path, struct stat *stbuf) {
 		time(&stbuf->st_mtime);
 	}
 	else{
-		stbuf->st_mode   = S_IFDIR | 0644;
-		stbuf->st_nlink  = 2;
+		stbuf->st_mode   = S_IFREG | 0444;
+		stbuf->st_nlink  = 1;
 		time(&stbuf->st_mtime);
 	}
 		
@@ -238,14 +266,15 @@ static int tfs_getattr(const char *path, struct stat *stbuf) {
 static int tfs_opendir(const char *path, struct fuse_file_info *fi) {
 
 	// Step 1: Call get_node_by_path() to get inode from path
-
-	// Step 2: If not find, return -1
+	get_node_by_path(path, )
+	// Step 2: If not found, return -1
 
     return 0;
 }
 
 static int tfs_readdir(const char *path, void *buffer, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi) {
-
+	(void) offset;
+	(void) fi;
 	// Step 1: Call get_node_by_path() to get inode from path
 
 	// Step 2: Read directory entries from its data blocks, and copy them to filler
@@ -418,7 +447,7 @@ int main(int argc, char *argv[]) {
 	getcwd(diskfile_path, PATH_MAX);
 	strcat(diskfile_path, "/DISKFILE");
 
-	fuse_stat = fuse_main(argc, argv, &tfs_ope, NULL);
+	fuse_stat = fuse_main(argc, argv, &tfs_open, NULL);
 
 	return fuse_stat;
 }
