@@ -7,7 +7,7 @@ simple_test:
 	$(CC) $(CFLAGS) -o simple_test simple_test.c
 
 test_case:
-	$(CC) $(CFLAGS) -o test_case test_case.c
+	$(CC) $(CFLAGS) -o test_case test_cases.c
 
 clean:
 	rm -rf simple_test test_case

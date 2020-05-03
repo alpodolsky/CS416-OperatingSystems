@@ -94,7 +94,7 @@ int readi(uint16_t ino, struct inode *inode) {
 	//might need to change so that we bio_read into  char*buffer first
 		//then into local_inode
 	bio_read(block_number+sp->i_start_blk,local_inode);
-	memcopy(inode, &local_inode[inode_offset],sizeof(struct inode));
+	memcpy(inode, &local_inode[inode_offset],sizeof(struct inode));
 	free(local_inode);
 	printf("did things in readi\n");
 	return 0;
@@ -111,7 +111,7 @@ int writei(uint16_t ino, struct inode *inode) {
 	// Step 3: Write inode to disk 
 	struct inode *local_inode = malloc(BLOCK_SIZE);
 	bio_read(block_number,local_inode);
-    memcopy(&local_inode[inode_offset], inode, sizeof(struct inode));
+    memcpy(&local_inode[inode_offset], inode, sizeof(struct inode));
     bio_write(block_number+sp->i_start_blk, inode);
 	free(local_inode);
 	return 0;
@@ -305,8 +305,10 @@ int tfs_mkfs() {
     root_d->vstat.st_nlink = 0;
     root_d->vstat.st_blksize = BLOCK_SIZE;
     root_d->vstat.st_blocks = 1;
-
-	dev_open(diskfile_path);
+	root_d->vstat.st_gid = getgid();
+	root_d->vstat.st_uid = getuid();
+	printf("finished in mkfs\n");
+	//dev_open(diskfile_path);
 	return 0;
 }
 
@@ -316,17 +318,19 @@ int tfs_mkfs() {
  */
 static void *tfs_init(struct fuse_conn_info *conn) {
 	// Step 1a: If disk file is not found, call mkfs
-	if(dev_open(diskfile_path)==-1){
+	printf("%s diskfilepath", diskfile_path);
+	if(dev_open(diskfile_path)!=0){
+		printf("calling mkfs\n");
 		tfs_mkfs();
 	}
     // Step 1b: If disk file is found, just initialize in-memory data structures
     // and read superblock from disk
-	sp = (struct superblock*)malloc(sizeof(struct superblock));
-	bio_read(0, &sp);
-	//memcpy(sp, buffer, sizeof(struct superblock));
-	//need to then  read the inote  and data bitmaps?
-	//make sure to reset the buffer
-	memset(buffer, BLOCK_SIZE, '\0');
+	else{
+		sp = (struct superblock*)malloc(sizeof(struct superblock));
+		bio_read(0, &sp);
+		printf("did bioread");
+	}
+
 	return NULL;
 }
 
@@ -346,27 +350,32 @@ static void tfs_destroy(void *userdata) {
 static int tfs_getattr(const char *path, struct stat *stbuf) {
 	// Step 1: call get_node_by_path() to get inode from path
 	struct inode* local_inode = (struct inode*)malloc(sizeof(struct inode));
-	int found = get_node_by_path(path,0,local_inode);
-	if (found ==-1){
+	printf("before found\n");
+	int found = get_node_by_path(path,0,&local_inode);
+	if (found == -1){
+		free(local_inode);
 		return -ENOENT;
 	}
+	printf("before big stoof\n");
 	// Step 2: fill attribute of file into stbuf from inode
-	stbuf = &local_inode->vstat;
-	//idk if the time thing is right or stbuf needs more stuff
-	//bit permissions
-	//1 is exec, 2 is write, 4 is read, 5+ is a combo of the 3
-	if(strcmp(path,"/")==0){
-		//defines as a file where owner has all permisions group have exec and read, so does users
-		stbuf->st_mode   = S_IFDIR | 0755;
-		stbuf->st_nlink  = 2;
-		time(&stbuf->st_mtime);
+	
+	stbuf->st_mode = local_inode->vstat.st_mode;
+	stbuf->st_nlink = local_inode->vstat.st_nlink;
+	if(local_inode->type==0){
+		stbuf->st_mode = S_IFDIR | 0755;
+		stbuf->st_nlink = 2;
 	}
 	else{
-		stbuf->st_mode   = S_IFREG | 0644;
-		stbuf->st_nlink  = 1;
-		stbuf->st_size = 1024;
-		time(&stbuf->st_mtime);
+		stbuf->st_mode = S_IFREG | 0644;
+		stbuf->st_nlink = 1;
 	}
+	stbuf->st_ino = local_inode->ino;
+	stbuf->st_uid = getuid();
+	stbuf->st_gid = getgid();
+	stbuf->st_size = local_inode->size;
+	stbuf->st_mtime = time(NULL);
+	printf("passed the big stoof\n");
+
 	free(local_inode);
 	return 0;
 }
@@ -428,7 +437,7 @@ static int tfs_mkdir(const char *path, mode_t mode) {
 	local_inode->ino = get_avail_ino();
 
 	// Step 4: Call dir_add() to add directory entry of target directory to parent directory
-	dir_add(local_inode,local_inode->ino,base,strlen(base));
+	dir_add(*local_inode,local_inode->ino,base,strlen(base));
 	
 	// Step 5: Update inode for target directory
 	local_inode->valid = 1;
@@ -478,7 +487,7 @@ static int tfs_rmdir(const char *path) {
 
 	// Step 6: Call dir_remove() to remove directory entry of target directory in its parent directory
 
-	dir_remove(par_inode, basename, strlen(path)); //might have to change this last parameter
+	dir_remove(*par_inode, basename, strlen(path)); //might have to change this last parameter
 	free(dir);
 	free(base);
 	free(local_inode);

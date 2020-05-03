@@ -9,12 +9,12 @@
 #include <dirent.h>
 
 /* You need to change this macro to your TFS mount point*/
-#define TESTDIR "/tmp/mountdir"
+#define TESTDIR "/tmp/adp169/mountdir"
 
 #define N_FILES 100
 #define BLOCKSIZE 4096
 #define FSPATHLEN 256
-#define ITERS 100
+#define ITERS 16
 #define FILEPERM 0666
 #define DIRPERM 0755
 
