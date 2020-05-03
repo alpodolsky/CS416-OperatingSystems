@@ -138,15 +138,16 @@ int dir_find(uint16_t ino, const char *fname, size_t name_len, struct dirent *di
 				if(directEnt->valid == 1){
 					//If the name matches, then copy directory entry to dirent structure
 					if(strcmp(directEnt->name, fname) == 0){
-						memcpy(dirent, &directEnt, sizeof(struct dirent));
+						memcpy(dirent, directEnt, sizeof(struct dirent));
 						free(directEnt);
+						printf("found file\n");
 						return 0;
 					}
 				}
 			}
 		}
 	}
-  
+	printf("didnot find file\n");
 	free(directEnt);
 	return -1;
 	//maybe return -1
