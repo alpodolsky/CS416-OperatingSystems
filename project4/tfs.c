@@ -447,7 +447,7 @@ static int tfs_mkdir(const char *path, mode_t mode) {
 }
 
 static int tfs_rmdir(const char *path) {
-
+	//clear the buffer, we might need it in this method
 	// Step 1: Use dirname() and basename() to separate parent directory path and target directory name
 	char* dir = dirname(strdup(path));
 	//this will grab the end part
@@ -455,15 +455,34 @@ static int tfs_rmdir(const char *path) {
 	// Step 2: Call get_node_by_path() to get inode of target directory
 	struct inode* local_inode = malloc(sizeof(struct inode));
 	
-	local_inode->ino = get_node_by_path(base,0,local_inode);
+	int target = get_node_by_path(base,0,local_inode);
+	if(target == -1) return -1;
 	// Step 3: Clear data block bitmap of target directory
-
+	for(i = 0; i< 16; i++){
+		if(local_inode->direct_ptr[i] == 0){
+			unset_bitmap(dblock_map, local_inode->direct_ptr[i]);
+		}
+	}
+	bio_write(sp->d_bitmap_blk, local_inode->direct_ptr[i]);
 	// Step 4: Clear inode bitmap and its data block
-
+	unset_bitmap(inode_map, local_inode->ino);
+	bio_write(sp->i_bitmap_blk, inode_map);
+	
+	//idk if we have to do this part
+	local_inode->valid = 0;
+	writei(local_inode->ino, local_inode);
+	
 	// Step 5: Call get_node_by_path() to get inode of parent directory
+	struct inode* par_inode = malloc(sizeof(struct inode));
+	get_node_by_path(dir, 0, par_inode);
 
 	// Step 6: Call dir_remove() to remove directory entry of target directory in its parent directory
 
+	dir_remove(par_inode, basename, strlen(path)); //might have to change this last parameter
+	free(dir);
+	free(base);
+	free(local_inode);
+	free(par_inode);
 	return 0;
 }
 
@@ -479,15 +498,43 @@ static int tfs_create(const char *path, mode_t mode, struct fuse_file_info *fi) 
 	char* dir = dirname(path);
 	char* base = basename(path);
 	// Step 2: Call get_node_by_path() to get inode of parent directory
+	struct inode* local_inode = malloc(sizeof(struct inode));
+	get_node_by_path(dir, 0, local_inode);
 
 	// Step 3: Call get_avail_ino() to get an available inode number
-
+	int avail_ino_num = get_avail_ino();
 	// Step 4: Call dir_add() to add directory entry of target file to parent directory
-
+	dir_add(*local_inode, avail_ino_num, basename, strlen(path)); //maybe change last param
 	// Step 5: Update inode for target file
+	struct inode *upInode = malloc (sizeof(struct inode));
+	upInode-> ino = avail_ino_num;
+	upInode->valid = 1;
+	upInode-> size = 0;
+	upInode->type = 1;
+	upInode->link = 1;
+	upInode->direct_ptr[16] = 0; //idk if we have to memset 
+	//if we do
+	//memset(upInode->direct_ptr, 0, sizeof(int)*16);
+	upInode->indirect_ptr[16] = 0; //idk if we have to memset
+	//if we do
+	//memset(upInode->indirect_ptr, 0, sizeof(int)*8);
 
+	//we have to update stat too 
+	upInode->vstat.st_ino = avail_ino_num;
+	upInode->vstat.st_mode = S_IFREG | mode; //iffy about this, maybe change with S_IFDRIR;
+	upInode->vstat.st_nlink = 1;
+	upInode->vstat.st_blksize = BLOCK_SIZE;
+	upInode->vstat.st_blocks = 0;
+	upInode->vstat.st_gid = getgid();
+	upInode->vstat.st_uid = getuid();
+	upInode->vstat.st_atime = time(NULL);
+	upInode->vstat.st_mtime = time(NULL);
 	// Step 6: Call writei() to write inode to disk
-
+	writei(avail_ino_num, upInode);
+	free(dir);
+	free(base);
+	free(local_inode);
+	free(upInode);
 	return 0;
 }
 
