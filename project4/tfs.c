@@ -125,23 +125,68 @@ int dir_find(uint16_t ino, const char *fname, size_t name_len, struct dirent *di
 	struct inode* inode = malloc(sizeof(struct inode));
 	readi(ino, inode);
   // Step 2: Get data block of current directory from inode
-
-  // Step 3: Read directory's data block and check each directory entry.
-  //If the name matches, then copy directory entry to dirent structure
+	struct direct* directEnt = malloc(sizeof(struct dirent));
+	int d_block =0;
+	int direct = 0;
+	for(i = 0; i< 16; i++){
+		if(inode->direct_ptr[i] != 0){
+			bio_read(inode->direct_ptr[i], buffer);
+			int j =0;
+			// Step 3: Read directory's data block and check each directory entry.
+ 
+			for(j = 0; j<16; j++){
+				if(directEnt[j].valid == 1){
+					//If the name matches, then copy directory entry to dirent structure
+					if(strcmp(directEnt[j].name, fname) == 0){
+						memcpy(dirent, &directEnt[j], sizeof(struct dirent));
+						return inode->direct_ptr[i];
+						//maybe return 0;
+					}
+				}
+			}
+		}
+	}
+  
 
 	return 0;
+	//maybe return -1
 }
 
 int dir_add(struct inode dir_inode, uint16_t f_ino, const char *fname, size_t name_len) {
 
+	struct dirent* directEnt = malloc(sizeof(struct dirent));
+	int j = 0;
+
 	// Step 1: Read dir_inode's data block and check each directory entry of dir_inode
 	
 	// Step 2: Check if fname (directory name) is already used in other entries
+	if(dir_find(dir_inode.ino fname, name_len, directEnt) != 0){
+		return 0;
+		//failed
+	}else {
+		for(i = 0; i < 16; i ++){
+			if(dir_inode.direct_ptr[i] != 0){
+				
+				bio_read(dir_inode.direct_ptr[i], directEnt);
+				if(strcmp(fname, directEnt->name) == 0){
+					return 0;
+					//or change to -1, check when testing
+				}
+			// Step 3: Add directory entry in dir_inode's data block and write to disk
+			}else{
+				// Allocate a new data block for this directory if it does not exist
+				int nxtAvailBlk = get_avail_blkno();
+				dir_inode.direct_ptr[i] = nxtAvailBlk; 
+				directEnt->ino = f_ino;
+				directEnt->valid = 1;
+				struct dirent *newEnt = malloc(sizeof(struct dirent));
+				strcpy(newEnt->name, fname);
 
-	// Step 3: Add directory entry in dir_inode's data block and write to disk
-
-	// Allocate a new data block for this directory if it does not exist
-
+				bio_write(nxtAvailBlk, newEnt);
+				break;
+			}
+		}
+	}
 	// Update directory inode
 
 	// Write directory entry
@@ -151,8 +196,21 @@ int dir_add(struct inode dir_inode, uint16_t f_ino, const char *fname, size_t na
 
 int dir_remove(struct inode dir_inode, const char *fname, size_t name_len) {
 
+	struct dirent *directEnt = malloc(sizeof(struct dirent));
 	// Step 1: Read dir_inode's data block and checks each directory entry of dir_inode
-	
+	for(i = 0; i< 16; i++){
+		if(dir_inode.direct_ptr[i] != 0){
+			bio_read(dir_inode.direct_ptr[i], directEnt);
+			if(strcmp(fname, directEnt->name) == 0){
+				dir_inode.direct_ptr[i] = 0;
+				bio_write (sp->i_start_blk + dir_inode.ino, &dir_inode);
+				return 0;
+			}else{
+				printf("File not found\n");
+				return -1;
+			}
+		}
+	}
 	// Step 2: Check if fname exist
 
 	// Step 3: If exist, then remove it from dir_inode's data block and write to disk
