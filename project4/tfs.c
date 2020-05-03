@@ -27,6 +27,8 @@ char diskfile_path[PATH_MAX];
 int i=0;
 struct superblock sp;
 unsigned char buffer[BLOCK_SIZE];
+bitmap_t inode_map;
+bitmap_t dblock_map;
 // Declare your in-memory data structures here
 
 /* 
@@ -36,11 +38,21 @@ int get_avail_ino() {
 
 	// Step 1: Read inode bitmap from disk
 	bio_read(sp->i_start_blk, buffer);
+	memcpy(inode_map,buffer,MAX_INUM/8);
+	memset(buffer,'\0',BLOCK_SIZE);
 	// Step 2: Traverse inode bitmap to find an available slot
-
-	// Step 3: Update inode bitmap and write to disk 
-
-	return 0;
+	for(i=0;i<MAX_INUM;i++){
+		if(get_bitmap(inode_map,i)==0){
+			//found available inode
+			//Step 3: Update inode bitmap and write to disk 
+			set_bitmap(inode_map,i);
+			bio_write(sp->i_start_blk,inode_map);
+			return i;
+		}
+	}
+	
+	printf("unable to find available inode\n");
+	return -1;
 }
 
 /* 
@@ -49,12 +61,21 @@ int get_avail_ino() {
 int get_avail_blkno() {
 
 	// Step 1: Read data block bitmap from disk
-	
+	dblock_map = malloc(sizeof(MAX_DNUM/8));
+	bio_read(sp->d_bitmap_block,dblock_map);
 	// Step 2: Traverse data block bitmap to find an available slot
-
-	// Step 3: Update data block bitmap and write to disk 
-
-	return 0;
+	i = 0;
+	for(i = 0; i < MAX_DNUM;i++){
+		if(get_bitmap(dblock_map,i)==0){
+			// Step 3: Update data block bitmap and write to disk 
+			set_bitmap(dblock_map,i);
+			bio_write(sp->d_bitmap_block,dblock_map);
+			printf("got available block\n");
+			return i + 3 + (MAX_INUM/16);
+		}
+	}
+	printf("failed to get available block\n");
+	return -1;
 }
 
 /* 
@@ -64,25 +85,27 @@ int readi(uint16_t ino, struct inode *inode) {
 
   // Step 1: Get the inode's on-disk block number
   //double check this stuff,16 should probably at least be BLOCK_SIZE maybe?
-	unsigned int block_number = ino/16+3;
+	unsigned int block_number = ino/(BLOCK_SIZE/sizeof(struct inode));
   // Step 2: Get offset of the inode in the inode on-disk block
-	unsigned int inode_offset = ino%16;
+	unsigned int inode_offset = ino%(BLOCK_SIZE/sizeof(struct inode));
   // Step 3: Read the block from disk and then copy into inode structure
-	
 	struct inode* local_inode = malloc(BLOCK_SIZE);
 	//might need to change so that we bio_read into  char*buffer first
 		//then into local_inode
 	bio_read(block_number,local_inode);
 	memcopy(inode, &local_inode[inode_offset],sizeof(struct inode));
+	printf("did things in readi\n");
 	return 0;
 }
 
 int writei(uint16_t ino, struct inode *inode) {
-
 	// Step 1: Get the block number where this inode resides on disk
-	unsigned int block_number = ino/16+3;
+	printf("%d blocksize/inode %d sizeof inode\n",BLOCK_SIZE/sizeof(struct inode),sizeof(struct inode));
+	unsigned int block_number = ino/BLOCK_SIZE/sizeof(struct inode);
+	
 	// Step 2: Get the offset in the block where this inode resides on disk
-	unsigned int inode_offset = ino%16;
+	unsigned int inode_offset = ino%BLOCK_SIZE/sizeof(struct inode);
+	
 	// Step 3: Write inode to disk 
 	struct inode* local_inode = malloc(BLOCK_SIZE);
 	bio_read(block_number,local_inode);
@@ -167,7 +190,7 @@ int get_node_by_path(const char *path, uint16_t ino, struct inode *inode) {
  * Make file system
  */
 int tfs_mkfs() {
-
+	printf("in tfs_mkfs\n");
 	// Call dev_init() to initialize (Create) Diskfile
 	dev_init(diskfile_path);
 	// write superblock information
@@ -175,23 +198,37 @@ int tfs_mkfs() {
 	sp->magic_num=MAGIC_NUM;
 	sp->max_inum=MAX_INUM;
 	sp->max_dnum=MAX_DNUM;
-
-
+	bio_write(0,&sp);
+	printf("wrote superblock\t");
 
 	// initialize inode bitmap
-	bitmap_t *inode_map = (char*)malloc(sizeof(MAX_INUM/8));
+	//this might need to be global
+	//i also am not sure what the size  of it should be
+	inode_map = malloc(sizeof(MAX_INUM/8));
 	memset(inode_map, 0, MAX_INUM/8);
-	sp->i_bitmap_blk = inode_map;
+	sp->i_bitmap_blk = 1;
 	struct inode *info_node = (struct inode*)malloc(MAX_INUM*sizeof(struct inode));
-	sp->i_start_blk = info_node;
-	
+	sp->i_start_blk = 3;
+	printf("setup inode stuff\t");
+
 	// initialize data block bitmap
-	bitmap_t *dblock_map = (char*)malloc(sizeof(MAX_DNUM/8));
-	memset(inode_map, 0, MAX_DNUM/8);
-	sp->d_bitmap_blk = dblock_map;
+	dblock_map = malloc(sizeof(MAX_DNUM/8));
+	memset(dblock_map, 0, MAX_DNUM/8);
+	bio_write(2,dblock_map);
+	printf("wrote datablock\t");
+
+	sp->d_bitmap_blk = 2;
+	free(dblock_map);
+	//starts the datablock just after the inode blocks
+	sp->d_start_blk = 3+(MAX_INUM/16);
+	//unsure where the start would be right now
 
 	// update bitmap information for root directory
-	set_bitmap(sp->i_bitmap_blk, 0);
+	set_bitmap(inode_map, 0);
+	bio_write(1,inode_map);
+	free(inode_map);
+	printf("wrote inode\t");
+
 	// update inode for root directory
 	sp->i_start_blk[0].ino = 0;
 	sp->i_start_blk[0].stat.st_ino=0;
@@ -230,23 +267,25 @@ static void *tfs_init(struct fuse_conn_info *conn) {
 
 static void tfs_destroy(void *userdata) {
 	// Step 1: De-allocate in-memory data structures
-	free(sp);
+	//this way will check if sp is even allocated to ensure
+		//unnecessary freeing
+	if(sp){
+		free(sp);
+	}
 	// Step 2: Close diskfile
 	dev_close();
 }
 
 
 static int tfs_getattr(const char *path, struct stat *stbuf) {
-
 	// Step 1: call get_node_by_path() to get inode from path
-
+	struct inode *local_inode = malloc(sizeof(struct inode));
+	get_node_by_path(path,0,local_inode);
 	// Step 2: fill attribute of file into stbuf from inode
+	stbuf = &local_inode->vstat;
+	//idk if the time thing is right or stbuf needs more stuff
 	//bit permissions
 	//1 is exec, 2 is write, 4 is read, 5+ is a combo of the 3
-	stbuf->st_uid = getuid();
-	stbuf->st_gid = getgid();
-	stbuf->st_atime = time( NULL );
-	stbuf->st_mtime = time( NULL );
 	if(strcmp(path,"/")==0){
 		//defines as a file where owner has all permisions group have exec and read, so does users
 		stbuf->st_mode   = S_IFDIR | 0755;
@@ -254,12 +293,11 @@ static int tfs_getattr(const char *path, struct stat *stbuf) {
 		time(&stbuf->st_mtime);
 	}
 	else{
-		stbuf->st_mode   = S_IFREG | 0444;
+		stbuf->st_mode   = S_IFREG | 0644;
 		stbuf->st_nlink  = 1;
+		stbuf->st_size = 1024;
 		time(&stbuf->st_mtime);
 	}
-		
-
 	return 0;
 }
 
