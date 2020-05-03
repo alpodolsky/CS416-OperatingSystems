@@ -26,7 +26,7 @@ char diskfile_path[PATH_MAX];
 
 int i=0;
 struct superblock *sp;
-unsigned char buffer[BLOCK_SIZE];
+unsigned char bufr[BLOCK_SIZE];
 bitmap_t inode_map;
 bitmap_t dblock_map;
 // Declare your in-memory data structures here
@@ -131,7 +131,7 @@ int dir_find(uint16_t ino, const char *fname, size_t name_len, struct dirent *di
 	int direct = 0;
 	for(i = 0; i< 16; i++){
 		if(inode->direct_ptr[i] != 0){
-			bio_read(inode->direct_ptr[i], buffer);
+			bio_read(inode->direct_ptr[i], directEnt);
 			int j =0;
 			// Step 3: Read directory's data block and check each directory entry.
 			for(j = 0; j<16; j++){
@@ -580,12 +580,12 @@ static int tfs_read(const char *path, char *buffer, size_t size, off_t offset, s
 		// Step 3: copy the correct amount of data from offset to buffer
 		if((BLOCK_SIZE-Offsetblk) >left ){
 			
-			memcpy((void*)(buffer+read),(void*)(Offsetblk+bufr),left);
+			memcpy((void*)(buffer[read]),(void*)(bufr[Offsetblk]),left);
 			read+= left;
 			
 		}else{
-			int temp = BLOCK_SIZE - offsetInBlock;
-			memcpy((void*)(buffer+read),(void*)(Offsetblk+bufr), temp);
+			int temp = BLOCK_SIZE - Offsetblk;
+			memcpy((void*)(buffer[read]),(void*)(bufr[Offsetblk]), temp);
 			read+= temp;
 		}
 		currBlock+= 1;
@@ -620,12 +620,12 @@ static int tfs_write(const char *path, const char *buffer, size_t size, off_t of
 		bio_read(local_inode->direct_ptr[currBlock],bufr); //might have to change to bio_read(local_inode->direct_ptr[currBlock]+sp->d_start_blk,buffer);
 		if((BLOCK_SIZE-Offsetblk) > left){
 			
-			memcpy((void*)(buffer+read),(void*)(Offsetblk+bufr),left);
+			memcpy((void*)(buffer[write]),(void*)(bufr[Offsetblk]),left);
 			write+= left;
 			
 		}else{
-			int temp = BLOCK_SIZE - offsetInBlock;
-			memcpy((void*)(buffer+read),(void*)(Offsetblk+bufr), temp);
+			int temp = BLOCK_SIZE - Offsetblk;
+			memcpy((void*)(buffer[write]),(void*)(bufr[Offsetblk]), temp);
 			write+= temp;
 		}
 		// Step 3: Write the correct amount of data from offset to disk
