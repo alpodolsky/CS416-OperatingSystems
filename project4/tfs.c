@@ -560,6 +560,7 @@ static int tfs_open(const char *path, struct fuse_file_info *fi) {
 }
 
 static int tfs_read(const char *path, char *buffer, size_t size, off_t offset, struct fuse_file_info *fi) {
+	//clear buffer
 	// Step 1: You could call get_node_by_path() to get inode from path
 	struct inode* local_inode = malloc(sizeof(struct inode));
 	int found = get_node_by_path(path, 0, local_inode);
@@ -569,14 +570,38 @@ static int tfs_read(const char *path, char *buffer, size_t size, off_t offset, s
 	}
 	// Step 2: Based on size and offset, read its data blocks from disk
 	int currBlock = offset/BLOCK_SIZE;
-	int blockOffset = offset%BLOCK_SIZE;
-	// Step 3: copy the correct amount of data from offset to buffer
+	int Offsetblk = offset%BLOCK_SIZE;
+	int read = 0;
+	int left = size;
+	while(read<size){
+		left = size -read;
+		bio_read(local_inode->direct_ptr[currBlock],bufr); //might have to change to bio_read(local_inode->direct_ptr[currBlock]+sp->d_start_blk,buffer);
+		// Step 3: copy the correct amount of data from offset to buffer
+		if((BLOCK_SIZE-Offsetblk) >left ){
+			
+			memcpy((void*)(buffer+read),(void*)(Offsetblk+bufr),left);
+			read+= left;
+			
+		}else{
+			int temp = BLOCK_SIZE - offsetInBlock;
+			memcpy((void*)(buffer+read),(void*)(Offsetblk+bufr), temp);
+			read+= temp;
+		}
+		currBlock+= 1;
+		Offsetblk = 0;
+		if(currBlock>=(sizeof(local_inode->direct_ptr)/4)){
+			break;
+		}
+
+	}
+	
 
 	// Note: this function should return the amount of bytes you copied to buffer
-	return 0;
+	return read;
 }
 
 static int tfs_write(const char *path, const char *buffer, size_t size, off_t offset, struct fuse_file_info *fi) {
+	//clear bufr
 	// Step 1: You could call get_node_by_path() to get inode from path
 	struct inode* local_inode = malloc(sizeof(struct inode));
 	int found = get_node_by_path(path, 0, local_inode);
@@ -585,13 +610,39 @@ static int tfs_write(const char *path, const char *buffer, size_t size, off_t of
 		return -1;
 	}
 	// Step 2: Based on size and offset, read its data blocks from disk
+	int currBlock = offset/BLOCK_SIZE;
+	int Offsetblk = offset%BLOCK_SIZE;
+	int left = size; 
+	int write = 0;
+	while(write<size){
+		left = size - write;
+		bio_read(local_inode->direct_ptr[currBlock],bufr); //might have to change to bio_read(local_inode->direct_ptr[currBlock]+sp->d_start_blk,buffer);
+		if((BLOCK_SIZE-Offsetblk) > left){
+			
+			memcpy((void*)(buffer+read),(void*)(Offsetblk+bufr),left);
+			write+= left;
+			
+		}else{
+			int temp = BLOCK_SIZE - offsetInBlock;
+			memcpy((void*)(buffer+read),(void*)(Offsetblk+bufr), temp);
+			write+= temp;
+		}
+		// Step 3: Write the correct amount of data from offset to disk
 
-	// Step 3: Write the correct amount of data from offset to disk
-
+		Offsetblk = 0;
+		bio_write(local_inode->direct_ptr[currBlock],bufr); //might have to change to bio_read(local_inode->direct_ptr[currBlock]+sp->d_start_blk,buffer);
+		currBlock+= 1;
+		
+		if(currBlock>=(sizeof(local_inode->direct_ptr)/4)){
+			break;
+		}
+	}
+	
 	// Step 4: Update the inode info and write it to disk
-
+	writei(local_inode->ino, local_inode);
+	free(local_inode);
 	// Note: this function should return the amount of bytes you write to disk
-	return size;
+	return write;
 }
 
 static int tfs_unlink(const char *path) {
