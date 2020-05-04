@@ -646,18 +646,36 @@ static int tfs_write(const char *path, const char *buffer, size_t size, off_t of
 static int tfs_unlink(const char *path) {
 
 	// Step 1: Use dirname() and basename() to separate parent directory path and target file name
-	//char* dir = dirname(strdup(path));
-	//char* base = basename(strdup(path));
+	char* dir = dirname(strdup(path));
+	char* base = basename(strdup(path));
 	// Step 2: Call get_node_by_path() to get inode of target file
-
+	struct inode* local_inode = malloc(sizeof(struct inode));
+	int found = get_node_by_path(path, 0, local_inode);
+	if(found==-1){
+		free(local_inode);
+		return -1;
+	}
 	// Step 3: Clear data block bitmap of target file
-
+	for(i = 0; i<16; i++){
+		if(local_inode->direct_ptr[i] == 0){
+			unset_bitmap(dblock_map, found);
+		}
+	}
+	bio_write(sp->d_bitmap_blk, dblock_map);
 	// Step 4: Clear inode bitmap and its data block
-
+	bio_read(sp->i_bitmap_blk,inode_map);
+	unset_bitmap(inode_map, local_inode->ino);
+	bio_write(sp->i_bitmap_blk, inode_map);
+	
 	// Step 5: Call get_node_by_path() to get inode of parent directory
-
+	struct inode* par_inode = malloc(sizeof(struct inode));
+	get_node_by_path(dir, 0, par_inode);
 	// Step 6: Call dir_remove() to remove directory entry of target file in its parent directory
-
+	dir_remove(par_inode, base, strlen(base));
+	free(dir);
+	free(base);
+	free(local_inode);
+	free(par_inode);
 	return 0;
 }
 
